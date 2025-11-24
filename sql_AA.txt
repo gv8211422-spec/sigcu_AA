@@ -1,0 +1,310 @@
+-- Crear la base de datos
+CREATE DATABASE IF NOT EXISTS sigcu_db;
+USE sigcu_db;
+
+-- Tabla de roles de usuario
+CREATE TABLE roles (
+    id_rol INT PRIMARY KEY AUTO_INCREMENT,
+    nombre_rol VARCHAR(50) NOT NULL UNIQUE,
+    descripcion TEXT,
+    nivel_acceso INT DEFAULT 1,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE
+);
+
+-- Tabla de usuarios
+CREATE TABLE usuarios (
+    id_usuario INT PRIMARY KEY AUTO_INCREMENT,
+    id_rol INT NOT NULL,
+    codigo_estudiante VARCHAR(20) UNIQUE,
+    numero_empleado VARCHAR(20) UNIQUE,
+    nombre VARCHAR(100) NOT NULL,
+    apellido_paterno VARCHAR(100) NOT NULL,
+    apellido_materno VARCHAR(100),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    telefono VARCHAR(15),
+    direccion TEXT,
+    fecha_nacimiento DATE,
+    genero ENUM('M', 'F', 'Otro'),
+    foto_perfil VARCHAR(255),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultimo_acceso TIMESTAMP NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_rol) REFERENCES roles(id_rol)
+);
+
+-- Tabla de instituciones (antes facultades)
+CREATE TABLE instituciones (
+    id_institucion INT PRIMARY KEY AUTO_INCREMENT,
+    codigo_institucion VARCHAR(10) UNIQUE NOT NULL,
+    nombre_institucion VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    director_id INT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (director_id) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de carreras/programas académicos
+CREATE TABLE carreras (
+    id_carrera INT PRIMARY KEY AUTO_INCREMENT,
+    id_institucion INT NOT NULL,
+    codigo_carrera VARCHAR(10) UNIQUE NOT NULL,
+    nombre_carrera VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    duracion_semestres INT,
+    creditos_totales INT,
+    coordinador_id INT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_institucion) REFERENCES instituciones(id_institucion),
+    FOREIGN KEY (coordinador_id) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de materias (antes cursos)
+CREATE TABLE materias (
+    id_materia INT PRIMARY KEY AUTO_INCREMENT,
+    codigo_materia VARCHAR(20) UNIQUE NOT NULL,
+    nombre_materia VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    creditos INT NOT NULL,
+    horas_teoria INT,
+    horas_practica INT,
+    id_carrera INT NOT NULL,
+    prerequisitos TEXT,
+    semestre INT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_carrera) REFERENCES carreras(id_carrera)
+);
+
+-- Tabla de grupos (antes secciones)
+CREATE TABLE grupos (
+    id_grupo INT PRIMARY KEY AUTO_INCREMENT,
+    id_materia INT NOT NULL,
+    semestre VARCHAR(10) NOT NULL, -- Ejemplo: "2024-1"
+    codigo_grupo VARCHAR(20) NOT NULL,
+    profesor_id INT NOT NULL,
+    horario TEXT,
+    aula VARCHAR(50),
+    fecha_inicio DATE,
+    fecha_fin DATE,
+    estado ENUM('Planificado', 'En curso', 'Finalizado', 'Cancelado') DEFAULT 'Planificado',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_grupo (id_materia, semestre, codigo_grupo),
+    FOREIGN KEY (id_materia) REFERENCES materias(id_materia),
+    FOREIGN KEY (profesor_id) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de inscripciones de estudiantes a grupos
+CREATE TABLE inscripciones (
+    id_inscripcion INT PRIMARY KEY AUTO_INCREMENT,
+    id_estudiante INT NOT NULL,
+    id_grupo INT NOT NULL,
+    fecha_inscripcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado ENUM('Inscrito', 'Retirado', 'Aprobado', 'Reprobado') DEFAULT 'Inscrito',
+    calificacion_final DECIMAL(4,2), -- Cambiado de nota_final a calificacion_final
+    observaciones TEXT,
+    fecha_retiro DATE NULL,
+    UNIQUE KEY unique_inscripcion (id_estudiante, id_grupo),
+    FOREIGN KEY (id_estudiante) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo)
+);
+
+-- Tabla de tipos de tarea (antes tipos de asignación)
+CREATE TABLE tipos_tarea (
+    id_tipo_tarea INT PRIMARY KEY AUTO_INCREMENT,
+    nombre_tipo VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    porcentaje DECIMAL(5,2) DEFAULT 100.00, -- Cambiado de peso a porcentaje
+    activo BOOLEAN DEFAULT TRUE
+);
+
+-- Tabla de tareas (antes asignaciones)
+CREATE TABLE tareas (
+    id_tarea INT PRIMARY KEY AUTO_INCREMENT,
+    id_grupo INT NOT NULL,
+    id_tipo_tarea INT NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    instrucciones TEXT,
+    fecha_publicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_entrega DATETIME NOT NULL,
+    porcentaje_total DECIMAL(5,2) DEFAULT 100.00, -- Cambiado de puntos_totales a porcentaje_total
+    archivo_adjunto VARCHAR(255),
+    permite_reenvio BOOLEAN DEFAULT FALSE,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo),
+    FOREIGN KEY (id_tipo_tarea) REFERENCES tipos_tarea(id_tipo_tarea)
+);
+
+-- Tabla de entregas de tareas
+CREATE TABLE entregas_tareas (
+    id_entrega INT PRIMARY KEY AUTO_INCREMENT,
+    id_tarea INT NOT NULL,
+    id_estudiante INT NOT NULL,
+    fecha_entrega TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    archivo_entrega VARCHAR(255),
+    comentario_estudiante TEXT,
+    comentario_profesor TEXT,
+    porcentaje_obtenido DECIMAL(5,2), -- Cambiado de puntos_obtenidos a porcentaje_obtenido
+    estado ENUM('Entregado', 'Calificado', 'Devuelto') DEFAULT 'Entregado',
+    fecha_calificacion TIMESTAMP NULL,
+    UNIQUE KEY unique_entrega (id_tarea, id_estudiante),
+    FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea),
+    FOREIGN KEY (id_estudiante) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de calificaciones
+CREATE TABLE calificaciones (
+    id_calificacion INT PRIMARY KEY AUTO_INCREMENT,
+    id_estudiante INT NOT NULL,
+    id_grupo INT NOT NULL,
+    id_tipo_tarea INT NOT NULL,
+    porcentaje_obtenido DECIMAL(5,2), -- Cambiado de puntaje a porcentaje_obtenido
+    porcentaje_ponderado DECIMAL(5,2), -- Cambiado de ponderado a porcentaje_ponderado
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    observaciones TEXT,
+    FOREIGN KEY (id_estudiante) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo),
+    FOREIGN KEY (id_tipo_tarea) REFERENCES tipos_tarea(id_tipo_tarea)
+);
+
+-- Tabla de vista de materias y tareas (reemplaza foros)
+CREATE TABLE vista_estudiantes (
+    id_vista INT PRIMARY KEY AUTO_INCREMENT,
+    id_estudiante INT NOT NULL,
+    id_grupo INT NOT NULL,
+    id_tarea INT NULL, -- NULL si es solo para ver la materia, NOT NULL si es para ver tarea específica
+    fecha_visualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tipo_vista ENUM('Materia', 'Tarea') NOT NULL,
+    FOREIGN KEY (id_estudiante) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo),
+    FOREIGN KEY (id_tarea) REFERENCES tareas(id_tarea)
+);
+
+-- Tabla de recursos de materias
+CREATE TABLE recursos (
+    id_recurso INT PRIMARY KEY AUTO_INCREMENT,
+    id_grupo INT NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    tipo_recurso ENUM('Documento', 'Video', 'Enlace', 'Presentación', 'Otro') NOT NULL,
+    archivo_url VARCHAR(255),
+    enlace_externo VARCHAR(500),
+    fecha_publicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    publicado_por INT NOT NULL,
+    visibilidad ENUM('Público', 'Solo inscritos', 'Privado') DEFAULT 'Solo inscritos',
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo),
+    FOREIGN KEY (publicado_por) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de eventos del calendario
+CREATE TABLE eventos (
+    id_evento INT PRIMARY KEY AUTO_INCREMENT,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    fecha_inicio DATETIME NOT NULL,
+    fecha_fin DATETIME NOT NULL,
+    tipo_evento ENUM('Académico', 'Administrativo', 'Social', 'Deportivo', 'Otro') NOT NULL,
+    id_grupo INT NULL,
+    id_usuario_creador INT NOT NULL,
+    ubicacion VARCHAR(255),
+    repetir ENUM('No', 'Diario', 'Semanal', 'Mensual', 'Anual') DEFAULT 'No',
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo),
+    FOREIGN KEY (id_usuario_creador) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de mensajes privados
+CREATE TABLE mensajes_privados (
+    id_mensaje INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario_remitente INT NOT NULL,
+    id_usuario_destinatario INT NOT NULL,
+    asunto VARCHAR(255),
+    mensaje TEXT NOT NULL,
+    fecha_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    leido BOOLEAN DEFAULT FALSE,
+    fecha_lectura TIMESTAMP NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (id_usuario_remitente) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_usuario_destinatario) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de notificaciones
+CREATE TABLE notificaciones (
+    id_notificacion INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    mensaje TEXT NOT NULL,
+    tipo_notificacion ENUM('Sistema', 'Materia', 'Mensaje', 'Tarea', 'Evento') NOT NULL,
+    enlace VARCHAR(500),
+    leida BOOLEAN DEFAULT FALSE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_lectura TIMESTAMP NULL,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de logs del sistema
+CREATE TABLE logs_sistema (
+    id_log INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NULL,
+    accion VARCHAR(255) NOT NULL,
+    modulo VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    fecha_log TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla de configuración del sistema
+CREATE TABLE configuracion_sistema (
+    id_config INT PRIMARY KEY AUTO_INCREMENT,
+    clave VARCHAR(100) UNIQUE NOT NULL,
+    valor TEXT,
+    descripcion TEXT,
+    tipo ENUM('Texto', 'Número', 'Booleano', 'JSON') DEFAULT 'Texto',
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insertar datos básicos
+INSERT INTO roles (nombre_rol, descripcion, nivel_acceso) VALUES
+('Administrador', 'Acceso completo al sistema', 10),
+('Profesor', 'Puede gestionar materias y calificaciones', 7),
+('Estudiante', 'Acceso a materias y recursos', 3),
+('Coordinador', 'Gestión de carreras y programas', 8),
+('Director', 'Administración de institución', 9);
+
+INSERT INTO tipos_tarea (nombre_tipo, descripcion, porcentaje) VALUES
+('Tarea', 'Tareas regulares de la materia', 15.00),
+('Proyecto', 'Proyectos de la materia', 25.00),
+('Examen Parcial', 'Exámenes parciales', 20.00),
+('Examen Final', 'Examen final de la materia', 30.00),
+('Participación', 'Participación en clase', 10.00);
+
+INSERT INTO configuracion_sistema (clave, valor, descripcion, tipo) VALUES
+('nombre_universidad', 'Universidad Central', 'Nombre de la universidad', 'Texto'),
+('logo_sistema', 'logo.png', 'Logo del sistema', 'Texto'),
+('pagina_inicio', 'dashboard.php', 'Página de inicio del sistema', 'Texto'),
+('max_intentos_login', '3', 'Máximo número de intentos de login', 'Número'),
+('tiempo_sesion', '3600', 'Tiempo de sesión en segundos', 'Número'),
+('semestre_actual', '2024-1', 'Semestre actual del sistema', 'Texto');
+
+-- Crear índices para mejorar el rendimiento
+CREATE INDEX idx_usuarios_email ON usuarios(email);
+CREATE INDEX idx_usuarios_rol ON usuarios(id_rol);
+CREATE INDEX idx_materias_carrera ON materias(id_carrera);
+CREATE INDEX idx_grupos_materia ON grupos(id_materia);
+CREATE INDEX idx_grupos_profesor ON grupos(profesor_id);
+CREATE INDEX idx_inscripciones_estudiante ON inscripciones(id_estudiante);
+CREATE INDEX idx_inscripciones_grupo ON inscripciones(id_grupo);
+CREATE INDEX idx_tareas_grupo ON tareas(id_grupo);
+CREATE INDEX idx_entregas_tarea ON entregas_tareas(id_tarea);
+CREATE INDEX idx_entregas_estudiante ON entregas_tareas(id_estudiante);
+CREATE INDEX idx_vista_estudiante ON vista_estudiantes(id_estudiante);
+CREATE INDEX idx_eventos_usuario ON eventos(id_usuario_creador);
+CREATE INDEX idx_notificaciones_usuario ON notificaciones(id_usuario);
