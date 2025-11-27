@@ -1,13 +1,11 @@
 -- =================================================================
--- SIGCU2 - Versión de Base de Datos: FINAL (Simplificada)
+-- SIGCU2 - Versión de Base de Datos: FINAL (Definitiva)
 -- =================================================================
 
 CREATE DATABASE sigcu2 CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci;
 USE sigcu2;
 
--- =================================================================
--- MODIFICACIÓN 8: Tabla USUARIOS simplificada
--- =================================================================
+-- Tabla USUARIOS simplificada
 CREATE TABLE usuarios (
     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
@@ -18,7 +16,6 @@ CREATE TABLE usuarios (
     rol ENUM('administrador', 'docente', 'alumno', 'administrativo') NOT NULL,
     matricula VARCHAR(50) UNIQUE,
     telefono VARCHAR(20),
-    -- Eliminados: fecha_nacimiento, genero, direccion
     estado_cuenta ENUM('activo', 'inactivo', 'pendiente') DEFAULT 'pendiente',
     fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
     ultimo_acceso DATETIME,
@@ -26,7 +23,7 @@ CREATE TABLE usuarios (
     token_expiracion DATETIME
 );
 
--- Tabla de materias (sin cambios)
+-- Tabla de materias
 CREATE TABLE materias (
     id_materia INT AUTO_INCREMENT PRIMARY KEY,
     nombre_materia VARCHAR(100) NOT NULL,
@@ -38,7 +35,7 @@ CREATE TABLE materias (
     porcentaje_actividades DECIMAL(5,2) DEFAULT 30.00
 );
 
--- Tabla de grupos (sin cambios)
+-- Tabla de grupos
 CREATE TABLE grupos (
     id_grupo INT AUTO_INCREMENT PRIMARY KEY,
     nombre_grupo VARCHAR(20) NOT NULL,
@@ -48,7 +45,7 @@ CREATE TABLE grupos (
     FOREIGN KEY (id_materia) REFERENCES materias(id_materia)
 );
 
--- Tabla de inscripciones (sin cambios)
+-- Tabla de inscripciones
 CREATE TABLE inscripciones (
     id_inscripcion INT AUTO_INCREMENT PRIMARY KEY,
     id_alumno INT NOT NULL,
@@ -60,9 +57,7 @@ CREATE TABLE inscripciones (
     FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo)
 );
 
--- =================================================================
--- MODIFICACIÓN 9: Tabla CALIFICACIONES con resumen de asistencias
--- =================================================================
+-- Tabla CALIFICACIONES con resumen de asistencias
 CREATE TABLE calificaciones (
     id_calificacion INT AUTO_INCREMENT PRIMARY KEY,
     id_alumno INT NOT NULL,
@@ -70,7 +65,6 @@ CREATE TABLE calificaciones (
     periodo_escolar VARCHAR(20) NOT NULL,
     calificacion_final DECIMAL(5,2) DEFAULT 0.00,
     estado_materia ENUM('inscrito', 'cursando', 'aprobada', 'reprobada', 'recursando') DEFAULT 'inscrito',
-    -- Nuevos campos para el resumen de asistencias (ej: 23/23)
     total_clases_periodo INT DEFAULT 0,
     total_asistencias_periodo INT DEFAULT 0,
     UNIQUE KEY unique_calificacion (id_alumno, id_materia, periodo_escolar),
@@ -78,7 +72,7 @@ CREATE TABLE calificaciones (
     FOREIGN KEY (id_materia) REFERENCES materias(id_materia)
 );
 
--- Tabla de EXÁMENES (sin cambios)
+-- Tabla de EXÁMENES
 CREATE TABLE examenes (
     id_examen INT AUTO_INCREMENT PRIMARY KEY,
     id_calificacion INT NOT NULL,
@@ -90,7 +84,7 @@ CREATE TABLE examenes (
     FOREIGN KEY (id_docente_registro) REFERENCES usuarios(id_usuario)
 );
 
--- Tabla de actividades académicas (con archivo_adjunto)
+-- Tabla de actividades académicas
 CREATE TABLE actividades_academicas (
     id_actividad INT AUTO_INCREMENT PRIMARY KEY,
     id_grupo INT NOT NULL,
@@ -107,7 +101,7 @@ CREATE TABLE actividades_academicas (
     FOREIGN KEY (id_docente) REFERENCES usuarios(id_usuario)
 );
 
--- Tabla de calificaciones de actividades (sin cambios)
+-- Tabla de calificaciones de actividades
 CREATE TABLE calificaciones_actividades (
     id_calificacion_actividad INT AUTO_INCREMENT PRIMARY KEY,
     id_actividad INT NOT NULL,
@@ -121,13 +115,10 @@ CREATE TABLE calificaciones_actividades (
     FOREIGN KEY (id_alumno) REFERENCES usuarios(id_usuario)
 );
 
--- =================================================================
--- MODIFICACIÓN 10: Tabla HORARIOS de Lunes a Viernes
--- =================================================================
+-- Tabla HORARIOS de Lunes a Viernes
 CREATE TABLE horarios (
     id_horario INT AUTO_INCREMENT PRIMARY KEY,
     id_grupo INT NOT NULL,
-    -- Corrección: Solo días de lunes a viernes
     dia_semana ENUM('lunes', 'martes', 'miércoles', 'jueves', 'viernes') NOT NULL,
     hora_inicio TIME NOT NULL,
     hora_fin TIME NOT NULL,
@@ -135,7 +126,7 @@ CREATE TABLE horarios (
     FOREIGN KEY (id_grupo) REFERENCES grupos(id_grupo)
 );
 
--- Tabla de mensajes (sin cambios)
+-- Tabla de mensajes
 CREATE TABLE mensajes (
     id_mensaje INT AUTO_INCREMENT PRIMARY KEY,
     id_remitente INT NOT NULL,
@@ -149,7 +140,7 @@ CREATE TABLE mensajes (
     FOREIGN KEY (id_destinatario) REFERENCES usuarios(id_usuario)
 );
 
--- Tabla de solicitudes de documentos (sin cambios)
+-- Tabla de solicitudes de documentos
 CREATE TABLE solicitudes_documentos (
     id_solicitud INT AUTO_INCREMENT PRIMARY KEY,
     id_alumno INT NOT NULL,
@@ -160,19 +151,20 @@ CREATE TABLE solicitudes_documentos (
     FOREIGN KEY (id_alumno) REFERENCES usuarios(id_usuario)
 );
 
--- Tabla de historial de actividad del sistema (sin cambios)
+-- =================================================================
+-- MODIFICACIÓN 11: Tabla HISTORIAL_SISTEMA sin ip_address
+-- =================================================================
 CREATE TABLE historial_sistema (
     id_historial INT AUTO_INCREMENT PRIMARY KEY,
     id_usuario INT NOT NULL,
     accion VARCHAR(100) NOT NULL,
     descripcion TEXT,
     fecha_accion DATETIME DEFAULT CURRENT_TIMESTAMP,
-    ip_address VARCHAR(45),
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
 
 -- =================================================================
--- TRIGGER para llenado automático de CALIFICACIONES (sin cambios)
+-- TRIGGER para llenado automático de CALIFICACIONES
 -- =================================================================
 DELIMITER //
 CREATE TRIGGER after_inscripcion_create_calificacion
